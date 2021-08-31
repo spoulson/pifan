@@ -1,16 +1,31 @@
 # Pi Fan
-
 Automatic fan controller for Dell PowerEdge servers G12+.
 
-Monitor CPU temperatures and adjust chassis fans accordingly.  Computes required fan speed using an easing formula based on the maximum CPU temperature.
+Continually monitor CPU temperatures and adjust chassis fan speeds accordingly.
+Computes required fan speed using an easing formula based on the maximum of
+current CPU temperatures.
 
 # Tested Platforms
 Tested on Dell PowerEdge R720.
+
+# System Requirements
+Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
+
+## Pre-requisites
+* `ipmitool`
+
+```
+$ sudo apt install ipmitool
+```
 
 # Install from Source
 
 ```sh
 make install
+
+or
+
+sudo -H pip3 install --upgrade .
 ```
 
 # Usage
