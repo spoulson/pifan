@@ -10,19 +10,26 @@ from .util import parse_pdv
 class Ipmitool:
     cmd_base: List[str]
 
+    cmd_base_print: List[str]
+
     def __init__(self, host: str, username: str, password: str) -> None:
         self.fans = {}
-        self.cmd_base = [
+        cmd_start = [
                 'ipmitool',
                 '-I', 'lanplus',
                 '-H', host,
                 '-U' ,username,
-                '-P', password
         ]
+        self.cmd_base = cmd_start + ['-P', password]
+        self.cmd_base_print = cmd_start + ['-P', '*']
+
+    def _run(self, args: List[str]) -> subprocess.CompletedProcess:
+        cmd = self.cmd_base + args
+        print(' '.join(self.cmd_base_print + args))
+        return subprocess.run(cmd, capture_output=True, encoding='utf-8')
 
     def sdr_type(self, type: str) -> List[List[str]]:
-        cmd = self.cmd_base + ['sdr', 'type', type]
-        response = subprocess.run(cmd, capture_output=True, encoding='utf-8')
+        response = self._run(['sdr', 'type', type])
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.sdr_type()')
@@ -30,8 +37,7 @@ class Ipmitool:
         return parse_pdv(response.stdout)
 
     def sdr_get(self, sensor_names: List[str]) -> Dict[str, List[str]]:
-        cmd = self.cmd_base + ['sdr', 'get'] + sensor_names
-        response = subprocess.run(cmd, capture_output=True, encoding='utf-8')
+        response = self._run(['sdr', 'get'] + sensor_names)
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.sdr_get()')
@@ -64,8 +70,7 @@ class Ipmitool:
         """
         Send a raw data request.
         """
-        cmd = self.cmd_base + ['raw'] + [('0x' + format(value, '02x')) for value in raw_data]
-        response = subprocess.run(cmd, capture_output=True, encoding='utf-8')
+        response = self._run(['raw'] + [('0x' + format(value, '02x')) for value in raw_data])
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.raw()')
