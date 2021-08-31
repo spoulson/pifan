@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# from distutils.core import setup
 import setuptools
 
 with open('README.md', 'r', encoding='utf-8') as fh:
@@ -8,19 +7,19 @@ with open('README.md', 'r', encoding='utf-8') as fh:
 setuptools.setup(
         name='pifan',
         version='0.1',
-        description='Dell PowerEdge fan speed controller',
+        description='Dell PowerEdge fan speed controller for Raspberry Pi',
         long_description=long_description,
         long_description_content_type="text/markdown",
         author='Shawn Poulson',
         author_email='shawn@explodingcoder.com',
-        url='https://gitlab.com/spoulson/pifan',
+        url='https://github.com/spoulson/pifan',
         packages=setuptools.find_packages(where="src"),
         package_dir={'': 'src'},
         scripts=[
             'bin/pifan',
         ],
         classifiers=[
-            'Development Status :: 4 - Beta',
+            'Development Status :: 2 - Pre-Alpha',
             'Environment :: Console',
             'License :: Other/Proprietary License',
             'Intended Audience :: System Administrators',
