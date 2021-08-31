@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""
+Pi Fan
+"""
+
+import argparse
+from mylib import PiFanController, IpmiCpu, IpmiFan
+
+def parse_args():
+    """
+    Parse command line arguments.
+    Return arguments.
+    """
+    parser = argparse.ArgumentParser(
+        description='Dell PowerEdge fan speed controller.',
+        epilog=""
+    )
+    parser.add_argument('--idealtemp', type=int, metavar='DEG_C', default=40,
+                        help='Ideal temperature')
+    parser.add_argument('--maxtemp', type=int, metavar='DEG_C', default=75,
+                        help='Max allowable temperature')
+    parser.add_argument('--easing', metavar='TYPE', default='parabolic',
+                        choices=['linear', 'parabolic'],
+                        help='Fan speed easing type')
+    parser.add_argument('host', metavar='HOST', help='Target host')
+    parser.add_argument('username', metavar='STR', help='Username')
+    parser.add_argument('password', metavar='STR', help='Password')
+
+    return parser.parse_args()
+
+def main():
+    """
+    Program entrypoint.
+    """
+    args = parse_args()
+
+    ipmi_fan = IpmiFan(args.host, args.username, args.password)
+    ipmi_fan.discover_sensors()
+    ipmi_cpu = IpmiCpu(args.host, args.username, args.password)
+    ipmi_cpu.discover_sensors()
+
+    controller = PiFanController(ipmi_fan, ipmi_cpu)
+    controller.ideal_temp = args.idealtemp
+    controller.max_temp = args.maxtemp
+    controller.easing = args.easing
+    # controller.monitor()
+
+if __name__ == '__main__':
+    main()
