@@ -21,11 +21,11 @@ $ sudo apt install ipmitool
 # Install from Source
 
 ```sh
-make install
+$ make install
 
 or
 
-sudo -H pip3 install --upgrade .
+$ sudo -H pip3 install --upgrade .
 ```
 
 # Usage
