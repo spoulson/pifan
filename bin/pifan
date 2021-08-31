@@ -12,19 +12,19 @@ def parse_args():
     Return arguments.
     """
     parser = argparse.ArgumentParser(
-        description='Dell PowerEdge fan speed controller.',
+        description='Dell PowerEdge fan speed controller for Raspberry Pi.',
         epilog=""
     )
-    parser.add_argument('--idealtemp', type=int, metavar='DEG_C', default=40,
-                        help='Ideal temperature')
-    parser.add_argument('--maxtemp', type=int, metavar='DEG_C', default=75,
-                        help='Max allowable temperature')
+    parser.add_argument('--idealtemp', type=float, metavar='DEG_C', default=40,
+                        help='Ideal temperature (default: 40)')
+    parser.add_argument('--maxtemp', type=float, metavar='DEG_C', default=75,
+                        help='Max allowable temperature (default: 75)')
     parser.add_argument('--easing', metavar='TYPE', default='parabolic',
                         choices=['linear', 'parabolic'],
-                        help='Fan speed easing type')
+                        help='Fan speed easing type: linear | parabolic (default: parabolic)')
     parser.add_argument('host', metavar='HOST', help='Target host')
-    parser.add_argument('username', metavar='STR', help='Username')
-    parser.add_argument('password', metavar='STR', help='Password')
+    parser.add_argument('username', metavar='USERNAME', help='Username')
+    parser.add_argument('password', metavar='PASSWORD', help='Password')
 
     return parser.parse_args()
 
