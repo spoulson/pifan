@@ -1,4 +1,4 @@
-# Pi Fan
+# PiFan
 Automatic fan controller for Dell PowerEdge servers G12+.
 
 Optimizes chassis fans to run as low as necessary to maintain safe thermals

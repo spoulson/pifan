@@ -1,6 +1,6 @@
 """
 Wrapper for ipmitool command.
-https://docs.oracle.com/cd/E19464-01/820-6850-11/IPMItool.html#50602039_68835
+https://docs.oracle.com/cd/E19464-01/820-6850-11/IPMItool.html
 """
 
 import re
