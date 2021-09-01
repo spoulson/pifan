@@ -2,6 +2,7 @@
 Pi Fan controller class.
 """
 
+from datetime import datetime
 import time
 import traceback
 from .ipmi_cpu import IpmiCpu
@@ -15,10 +16,12 @@ class PiFanController:
     def __init__(self, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
         self.ipmi_fan = ipmi_fan
         self.ipmi_cpu = ipmi_cpu
+        self.interval = 10
         self.ideal_temp = 40.0
         self.max_temp = 75.0
         self.max_fan = 100
         self.easing = 'linear'
+        self.dry_run = False
 
     def suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
@@ -30,7 +33,6 @@ class PiFanController:
 
         temp_range = self.max_temp - self.ideal_temp
         speed = self.max_fan * offset / temp_range
-        print(f'suggest_fan_speed_linear: {speed}')
         return min(self.max_fan, int(speed))
 
     def suggest_fan_speed_parabolic(self, cpu_temp: float) -> int:
@@ -45,7 +47,6 @@ class PiFanController:
 
         temp_range = float(self.max_temp - self.ideal_temp)
         speed = self.max_fan / (temp_range * temp_range) * (offset * offset)
-        print(f'suggest_fan_speed_parabolic: {speed}')
         return min(self.max_fan, int(speed))
 
     def suggest_fan_speed(self, cpu_temp: float) -> int:
@@ -57,14 +58,29 @@ class PiFanController:
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
     def monitor(self) -> None:
+        print()
+
         while True:
+            poll_start_time = datetime.now()
+            print('--- Poll start: ' + poll_start_time.strftime('%x %X'))
+
             try:
-                cpu_temp = max(self.ipmi_fan.get_cpu_temps())
-                print(f'cpu_temp: {cpu_temp}')
+                self.ipmi_cpu.read_sensors()
+                cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
+                print(f'Max CPU temperature: {cpu_temp}C')
                 speed = self.suggest_fan_speed(cpu_temp)
-                print(f'speed: {speed}')
-                self.ipmi_fan.set_fan_speed(speed)
+                print(f'Suggested fan speed: {speed}%')
+
+                if not self.dry_run:
+                    self.ipmi_fan.set_fan_speed(speed)
+                else:
+                    print('Dry run mode: not calling set_fan_speed()')
+
+                self.ipmi_fan.read_sensors()
+
             except:
                 print(traceback.format_exc())
 
-            time.sleep(1)
+            poll_end_time = datetime.now()
+            print('--- Poll end: ' + poll_end_time.strftime('%x %X') + '\n')
+            time.sleep(self.interval)

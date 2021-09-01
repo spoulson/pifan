@@ -17,10 +17,10 @@ class CpuSensor:
     def __init__(self) -> None:
         self.name = ''
         self.id = 0
-        self.temp = 0
+        self.temp = 0.0
 
     def __str__(self) -> str:
-        return f'CpuSensor: name={self.name}, id={self.id:#x}, temp={self.temp}'
+        return f'CpuSensor: name={self.name}, id={self.id:#x}, temp={self.temp}C'
 
 class IpmiCpu:
     cpu_map: Dict[str, CpuSensor]
@@ -72,6 +72,9 @@ class IpmiCpu:
         rows = self.ipmitool.sdr_type('temperature')
 
         for row in rows:
+            if len(row) < 2:
+                continue
+
             key = f'{row[0]} ({row[1]})'
             if key in self.cpu_map:
                 sensor = self.cpu_map[key]
@@ -92,3 +95,15 @@ class IpmiCpu:
         for name in sorted(names):
             cpu = self.cpu_map[name]
             print(cpu)
+
+    def get_max_cpu_temp(self) -> float:
+        """
+        Get maximum of CPU temps.
+        """
+        temp: float = 0.0
+
+        for key in self.cpu_map:
+            sensor = self.cpu_map[key]
+            temp = max(temp, sensor.temp)
+
+        return temp

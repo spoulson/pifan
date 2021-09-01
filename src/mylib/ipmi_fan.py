@@ -23,13 +23,13 @@ class FanSensor:
         self.max = 0
 
     def __str__(self) -> str:
-        return f'FanSensor: name={self.name}, id={self.id:#x}, rpm={self.rpm}, max={self.max}, percent={self.percent()}'
+        return f'FanSensor: name={self.name}, id={self.id:#x}, rpm={self.rpm}, max={self.max}, percent={self.percent():.1f}%'
 
-    def percent(self) -> int:
+    def percent(self) -> float:
         if self.max == 0:
             return float('nan')
 
-        return int(self.max / self.rpm)
+        return float(self.rpm) / float(self.max) * 100.0
 
 class IpmiFan:
     fan_map: Dict[str, FanSensor]
@@ -177,8 +177,8 @@ class IpmiFan:
 
     def set_static_fans(self) -> None:
         # raw 0x30 0x30 0x01 0x00
-        self.ipmitool.raw(bytearray([0x30, 0x30, 0x02, 0xff, 0x01, 0x00]))
+        self.ipmitool.raw(bytearray([0x30, 0x30, 0x02, 0x01, 0x00]))
 
     def set_dynamic_fans(self) -> None:
         # raw 0x30 0x30 0x01 0x01
-        self.ipmitool.raw(bytearray([0x30, 0x30, 0x02, 0xff, 0x01, 0x01]))
+        self.ipmitool.raw(bytearray([0x30, 0x30, 0x02, 0x01, 0x01]))
