@@ -4,14 +4,19 @@ Automatic fan controller for Dell PowerEdge servers G12+.
 Optimizes chassis fans to run as low as necessary to maintain safe thermals
 while minimizing noise and power consumption.
 
-Continually monitor CPU temperatures and adjust chassis fan speeds accordingly.
-Computes required fan speed using an easing formula based on the maximum of
-current CPU temperatures.
+Uses IPMI protocol to continually monitor CPU temperatures and adjust chassis
+fan speeds accordingly.  Computes required fan speed using an easing algorithm
+based on the maximum of current CPU temperatures.
 
 # Tested Platforms
-Tested on:
+Tested on servers:
 
 * Dell PowerEdge R720.
+
+Tested on Raspberry Pi models:
+
+* Raspberry Pi Desktop in VMware ESXi
+* *(physical Pis to be tested soon...)*
 
 I'd like more platforms to test.
 
@@ -19,13 +24,14 @@ I'd like more platforms to test.
 Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
 
 ## Pre-requisites
-* `ipmitool`
+* `ipmitool`: CLI tool for calling IPMI requests to Dell iDRAC.
 
 ```
 $ sudo apt install ipmitool
 ```
 
 # Install from Source
+Raspberry Pi OS comes shipped with Python 3 and Pip.  This makes installation straightforward:
 
 ```sh
 $ make install
@@ -68,18 +74,19 @@ minimum speed of 1200 rpm.
 Set this to the temperature that requires 100% fans. (VERY LOUD!)  Floating point is allowed.
 
 # Setup Development Environment
-Most of the Python operations are wrapped in `pipenv` so as not to step all over global installed packages.  This is installed with `make`:
+Most of the Python operations are wrapped in `pipenv` so as not to step all
+over globally installed packages.  This is installed with `make`:
 
 ```sh
 $ make tools
 ```
 
-Verification:
+Static analysis:
 ```sh
-$ make lint mypy
+$ make lint mypy pycodestyle
 ```
 
-Install with "editable" option for development:
+Install with "editable" option for testing and development:
 ```sh
 $ sudo -H pip3 install -e .
 ```
