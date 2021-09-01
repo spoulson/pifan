@@ -24,7 +24,7 @@ I'd like more platforms to test.
 Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
 
 ## Pre-requisites
-* `ipmitool`: CLI tool for calling IPMI requests to Dell iDRAC.
+* `ipmitool`: CLI tool for calling IPMI requests to server's iDRAC.
 
 ```
 $ sudo apt install ipmitool
