@@ -9,7 +9,11 @@ Computes required fan speed using an easing formula based on the maximum of
 current CPU temperatures.
 
 # Tested Platforms
-Tested on Dell PowerEdge R720.
+Tested on:
+
+* Dell PowerEdge R720.
+
+I'd like more platforms to test.
 
 # System Requirements
 Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
@@ -62,3 +66,20 @@ minimum speed of 1200 rpm.
 
 ## Max Temp
 Set this to the temperature that requires 100% fans. (VERY LOUD!)  Floating point is allowed.
+
+# Setup Development Environment
+Most of the Python operations are wrapped in `pipenv` so as not to step all over global installed packages.  This is installed with `make`:
+
+```sh
+$ make tools
+```
+
+Verification:
+```sh
+$ make lint mypy
+```
+
+Install with "editable" option for development:
+```sh
+$ sudo -H pip3 install -e .
+```

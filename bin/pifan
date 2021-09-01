@@ -6,6 +6,7 @@ Pi Fan
 import argparse
 from mylib import PiFanController, IpmiCpu, IpmiFan
 
+
 def parse_args():
     """
     Parse command line arguments.
@@ -23,14 +24,17 @@ def parse_args():
                         help='Max allowable temperature (default: 75)')
     parser.add_argument('--easing', metavar='TYPE', default='parabolic',
                         choices=['linear', 'parabolic'],
-                        help='Fan speed easing type: linear | parabolic (default: parabolic)')
-    parser.add_argument('--dry-run', const=True, default=False, action='store_const',
+                        help='Fan speed easing type: linear | parabolic '
+                             '(default: parabolic)')
+    parser.add_argument('--dry-run', const=True, default=False,
+                        action='store_const',
                         help='Dry run: don\'t change server settings')
     parser.add_argument('host', metavar='HOST', help='Target host')
     parser.add_argument('username', metavar='USERNAME', help='Username')
     parser.add_argument('password', metavar='PASSWORD', help='Password')
 
     return parser.parse_args()
+
 
 def main():
     """
@@ -50,6 +54,7 @@ def main():
     controller.easing = args.easing
     controller.dry_run = args.dry_run
     controller.monitor()
+
 
 if __name__ == '__main__':
     main()

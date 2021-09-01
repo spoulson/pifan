@@ -1,0 +1,8 @@
+[BASIC]
+good-names=
+  id
+
+[MESSAGES CONTROL]
+disable=
+  too-few-public-methods,
+  too-many-instance-attributes

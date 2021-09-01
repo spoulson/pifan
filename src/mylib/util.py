@@ -4,6 +4,7 @@ General utilities.
 
 from typing import List
 
+
 def parse_pdv(text: str) -> List[List[str]]:
     """
     Parse pipe delimited values.
@@ -22,6 +23,7 @@ def parse_pdv(text: str) -> List[List[str]]:
         rows.append(row)
 
     return rows
+
 
 def parse_hex(text: str) -> int:
     """

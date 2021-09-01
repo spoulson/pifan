@@ -1,5 +1,6 @@
 """
 Wrapper for ipmitool command.
+https://docs.oracle.com/cd/E19464-01/820-6850-11/IPMItool.html#50602039_68835
 """
 
 import re
@@ -8,18 +9,22 @@ import sys
 from typing import Dict, List
 from .util import parse_pdv
 
+
 class Ipmitool:
+    """
+    Wrapper for ipmitool CLI tool.
+    https://docs.oracle.com/cd/E19464-01/820-6850-11/IPMItool.html#50602039_68835
+    """
     cmd_base: List[str]
 
     cmd_base_print: List[str]
 
     def __init__(self, host: str, username: str, password: str) -> None:
-        self.fans = {}
         cmd_start = [
-                'ipmitool',
-                '-I', 'lanplus',
-                '-H', host,
-                '-U' ,username,
+            'ipmitool',
+            '-I', 'lanplus',
+            '-H', host,
+            '-U', username
         ]
         self.cmd_base = cmd_start + ['-P', password]
         self.cmd_base_print = cmd_start + ['-P', '*']
@@ -32,23 +37,40 @@ class Ipmitool:
         except KeyboardInterrupt:
             sys.exit()
 
-    def sdr_type(self, type: str) -> List[List[str]]:
-        response = self._run(['sdr', 'type', type])
+    def sdr_type(self, sensor_type: str) -> List[List[str]]:
+        """
+        Call `ipmitool sdr type`.
+        Output format::
+
+            <name> | <sensor id hex>h | <ok_status> |
+            <entity_id>.<instance_id> | <status>
+
+        """
+        response = self._run(['sdr', 'type', sensor_type])
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.sdr_type()')
 
         return parse_pdv(response.stdout)
 
-    def sdr_get(self, sensor_names: List[str]) -> Dict[str, List[str]]:
+    def sdr_get(self, sensor_names: List[str]) -> Dict[str, Dict[str, str]]:
+        """
+        Call `ipmitool sdr get`.
+        Output format::
+
+            Sensor ID: <name> (<id_hex>)
+             <field>: <value>
+             ...
+
+        """
         response = self._run(['sdr', 'get'] + sensor_names)
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.sdr_get()')
 
-        result: Dict[str, List[str]] = {}
-        header_re = re.compile('^\S.+:(.+)')
-        prop_re = re.compile('^ (.+):(.*)')
+        result: Dict[str, Dict[str, str]] = {}
+        header_re = re.compile(r'^\S.+:(.+)')
+        prop_re = re.compile(r'^ (.+):(.*)')
         name: str = ''
         item: Dict[str, str] = {}
 
@@ -72,9 +94,10 @@ class Ipmitool:
 
     def raw(self, raw_data: bytearray) -> None:
         """
-        Send a raw data request.
+        Call `ipmitool raw`.
         """
-        response = self._run(['raw'] + [('0x' + format(value, '02x')) for value in raw_data])
+        payload = [('0x' + format(value, '02x')) for value in raw_data]
+        response = self._run(['raw'] + payload)
         if response.returncode != 0:
             print(response.stderr)
             raise Exception('Error in ipmitool.raw()')

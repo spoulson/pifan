@@ -8,10 +8,27 @@ import traceback
 from .ipmi_cpu import IpmiCpu
 from .ipmi_fan import IpmiFan
 
+
 class PiFanController:
     """
     Fan Controller.
+    Reads fan and CPU sensors and changes fan speed to optimize noise reduction
+    and power consumption.
     """
+
+    ipmi_fan: IpmiFan
+
+    ipmi_cpu: IpmiCpu
+
+    interval: int
+
+    ideal_temp: float
+
+    max_temp: float
+
+    easing: str
+
+    dry_run: bool
 
     def __init__(self, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
         self.ipmi_fan = ipmi_fan
@@ -25,7 +42,7 @@ class PiFanController:
 
     def suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
-        Suggest a fan speed based on linear formula.
+        Suggest a fan speed based on linear algorithm.
         """
         offset = cpu_temp - self.ideal_temp
         if offset < 0:
@@ -50,6 +67,10 @@ class PiFanController:
         return min(self.max_fan, int(speed))
 
     def suggest_fan_speed(self, cpu_temp: float) -> int:
+        """
+        Suggest a fan speed for a CPU temperature.
+        Use selected easing algorithm.
+        """
         if self.easing == 'linear':
             return self.suggest_fan_speed_linear(cpu_temp)
         if self.easing == 'parabolic':
@@ -58,6 +79,11 @@ class PiFanController:
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
     def monitor(self) -> None:
+        """
+        Monitor fan and CPU sensors and adjust fan speed according to easing
+        algorithm.
+        Runs endlessly.
+        """
         print()
 
         while True:
@@ -78,7 +104,7 @@ class PiFanController:
 
                 self.ipmi_fan.read_sensors()
 
-            except:
+            except Exception:  # pylint: disable=broad-except
                 print(traceback.format_exc())
 
             poll_end_time = datetime.now()

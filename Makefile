@@ -4,10 +4,10 @@ default: lint
 .PHONY: init
 init: githooks
 
-# Install build dependencies.
 .PHONY: tools
 tools: init
-	pip3 install --upgrade build pylint3
+	pip3 install --upgrade pipenv build
+	pipenv install --dev
 
 .PHONY: githooks
 githooks:
@@ -17,9 +17,16 @@ githooks:
 
 .PHONY: lint
 lint: init
-	pylint3 . bin/pifan
+	pipenv run pylint3 src bin/pifan
 
-# Build distribution package in dist directory.
+.PHONY: mypy
+mypy: init
+	pipenv run mypy src bin/pifan
+
+.PHONY: pycodestyle
+pycodestyle: init
+	pipenv run pycodestyle --config .pycodestyle src bin/pifan
+
 .PHONY: build
 build:
 	python3 -m build

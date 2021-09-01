@@ -3,11 +3,15 @@ IPMI control of CPU temperatures.
 """
 
 import re
-from typing import Dict, List
+from typing import Dict
 from .ipmitool import Ipmitool
-from .util import parse_hex, parse_pdv
+from .util import parse_hex
+
 
 class CpuSensor:
+    """
+    CPU sensor state.
+    """
     name: str
 
     id: int
@@ -20,17 +24,22 @@ class CpuSensor:
         self.temp = 0.0
 
     def __str__(self) -> str:
-        return f'CpuSensor: name={self.name}, id={self.id:#x}, temp={self.temp}C'
+        return(f'CpuSensor: name={self.name}, id={self.id:#x}, '
+               f'temp={self.temp}C')
+
 
 class IpmiCpu:
+    """
+    IPMI control of CPU temperatures.
+    """
     cpu_map: Dict[str, CpuSensor]
 
     ipmitool: Ipmitool
 
-    pat_integer = re.compile('^(\d+)')
+    pat_integer = re.compile(r'^(\d+)')
 
     def __init__(self, host: str, username: str, password: str) -> None:
-        self.cpus = {}
+        self.cpu_map = {}
         self.ipmitool = Ipmitool(host, username, password)
 
     def discover_sensors(self) -> None:
@@ -85,7 +94,6 @@ class IpmiCpu:
                     sensor.temp = int(match_integer.groups()[0])
 
         self.dump_sensors()
-        pass
 
     def dump_sensors(self) -> None:
         """
