@@ -2,7 +2,7 @@
 Pi Fan controller class.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import traceback
 from .ipmi_cpu import IpmiCpu
@@ -15,7 +15,6 @@ class PiFanController:
     Reads fan and CPU sensors and changes fan speed to optimize noise reduction
     and power consumption.
     """
-
     ipmi_fan: IpmiFan
 
     ipmi_cpu: IpmiCpu
@@ -40,7 +39,7 @@ class PiFanController:
         self.easing = 'linear'
         self.dry_run = False
 
-    def suggest_fan_speed_linear(self, cpu_temp: float) -> int:
+    def _suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
         Suggest a fan speed based on linear algorithm.
         """
@@ -52,7 +51,7 @@ class PiFanController:
         speed = self.max_fan * offset / temp_range
         return min(self.max_fan, int(speed))
 
-    def suggest_fan_speed_parabolic(self, cpu_temp: float) -> int:
+    def _suggest_fan_speed_parabolic(self, cpu_temp: float) -> int:
         """
         Suggest a fan speed based on parabolic curve.
         """
@@ -72,9 +71,9 @@ class PiFanController:
         Use selected easing algorithm.
         """
         if self.easing == 'linear':
-            return self.suggest_fan_speed_linear(cpu_temp)
+            return self._suggest_fan_speed_linear(cpu_temp)
         if self.easing == 'parabolic':
-            return self.suggest_fan_speed_parabolic(cpu_temp)
+            return self._suggest_fan_speed_parabolic(cpu_temp)
 
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
@@ -109,4 +108,9 @@ class PiFanController:
 
             poll_end_time = datetime.now()
             print('--- Poll end: ' + poll_end_time.strftime('%x %X') + '\n')
-            time.sleep(self.interval)
+
+            # Wait for next polling interval.
+            next_poll_time = poll_start_time + timedelta(seconds=self.interval)
+            delay = (next_poll_time - poll_end_time).total_seconds()
+            if delay > 0:
+                time.sleep(delay)
