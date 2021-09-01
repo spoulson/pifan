@@ -24,6 +24,8 @@ I'd like more platforms to test.
 Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
 
 ## Pre-requisites
+* Server's iDRAC must be enabled for IPMI.
+   * For iDRAC 7, see web admin iDRAC Settings -> Network.  Tick "Enable NIC".  Configure "IPv4 Settings".  Tick "Enable IPMI Over LAN".  Click "Apply".
 * `ipmitool`: CLI tool for calling IPMI requests to server's iDRAC.
 
 ```
@@ -63,15 +65,22 @@ optional arguments:
   --dry-run          Dry run: don't change server settings
 ```
 
+## Host
+Set to hostname or IP of server's iDRAC.
+
+## Username and Password
+Use the iDRAC web admin credentials.
+
 ## Ideal Temp
-Set this to the temperature to allow fans to run at 0%.  Pifan will increase
-fans anywhere above this temperature.  Floating point is allowed.
+Set to the temperature to allow fans to run at 0%.  Pifan will increase fans
+anywhere above this temperature.  Floating point is allowed.
 
 Note: Fans don't actually stop at 0%.  The BMC will continue to run fans at a
 minimum speed of 1200 rpm.
 
 ## Max Temp
-Set this to the temperature that requires 100% fans. (VERY LOUD!)  Floating point is allowed.
+Set to the temperature that requires 100% fans. (VERY LOUD!)  Floating point is
+allowed.
 
 # Best Practices
 * Run PiFan on a physical Pi.
