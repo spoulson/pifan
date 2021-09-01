@@ -23,9 +23,11 @@ I'd like more platforms to test.
 # System Requirements
 Designed to be installed and run on Raspberry Pi OS.  Though, it's possible it will work on other Linux flavors since Raspberry Pi OS is a variant of Debian.
 
-## Pre-requisites
-* Server's iDRAC must be enabled for IPMI.
+## Server Pre-requisites
+* iDRAC must be enabled for IPMI.
    * For iDRAC 7, see web admin iDRAC Settings -> Network.  Tick "Enable NIC".  Configure "IPv4 Settings".  Tick "Enable IPMI Over LAN".  Click "Apply".
+
+## Raspberry Pi Pre-requisites
 * `ipmitool`: CLI tool for calling IPMI requests to server's iDRAC.
 
 ```
