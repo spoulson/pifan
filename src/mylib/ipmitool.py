@@ -4,6 +4,7 @@ Wrapper for ipmitool command.
 
 import re
 import subprocess
+import sys
 from typing import Dict, List
 from .util import parse_pdv
 
@@ -26,7 +27,10 @@ class Ipmitool:
     def _run(self, args: List[str]) -> subprocess.CompletedProcess:
         cmd = self.cmd_base + args
         print(' '.join(self.cmd_base_print + args))
-        return subprocess.run(cmd, capture_output=True, encoding='utf-8')
+        try:
+            return subprocess.run(cmd, capture_output=True, encoding='utf-8')
+        except KeyboardInterrupt:
+            sys.exit()
 
     def sdr_type(self, type: str) -> List[List[str]]:
         response = self._run(['sdr', 'type', type])
