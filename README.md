@@ -73,6 +73,10 @@ minimum speed of 1200 rpm.
 ## Max Temp
 Set this to the temperature that requires 100% fans. (VERY LOUD!)  Floating point is allowed.
 
+# Best Practices
+* Run PiFan on a physical Pi.
+* Power the Pi with a UPS.
+
 # Setup Development Environment
 Most of the Python operations are wrapped in `pipenv` so as not to step all
 over globally installed packages.  This is installed with `make`:
