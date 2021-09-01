@@ -5,11 +5,8 @@
 root = true
 
 [*]
-# Change these settings to your own preference
 indent_style = space
 indent_size = 2
-
-# We recommend you to keep these unchanged
 end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true
@@ -19,11 +16,7 @@ insert_final_newline = true
 indent_style = tab
 indent_size = 4
 
-[*.py]
-indent_style = space
-indent_size = 4
-
-[bin/pifan]
+[{*.py,bin/pifan}]
 indent_style = space
 indent_size = 4
 
