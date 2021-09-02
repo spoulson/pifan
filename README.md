@@ -48,7 +48,7 @@ $ sudo -H pip3 install --upgrade .
 # Usage
 ```
 usage: pifan [-h] [--interval SEC] [--idealtemp DEG_C] [--maxtemp DEG_C]
-             [--easing TYPE] [--dry-run]
+             [--easing TYPE] [--sample-size N] [--dry-run]
              HOST USERNAME PASSWORD
 
 Dell PowerEdge fan speed controller for Raspberry Pi.
@@ -64,6 +64,7 @@ optional arguments:
   --idealtemp DEG_C  Ideal temperature (default: 40)
   --maxtemp DEG_C    Max allowable temperature (default: 75)
   --easing TYPE      Fan speed easing type: linear | parabolic (default: parabolic)
+  --sample-size N    Sample size of CPU temp average aggregation (default: 3)
   --dry-run          Dry run: don't change server settings
 ```
 
