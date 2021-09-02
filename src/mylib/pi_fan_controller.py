@@ -4,11 +4,67 @@ Pi Fan controller class.
 
 from datetime import datetime, timedelta
 from functools import reduce
+import json
+import os
 import time
 import traceback
 from typing import List
 from .ipmi_cpu import IpmiCpu
 from .ipmi_fan import IpmiFan
+from .util import make_slug
+
+
+class ControllerState:
+    sample_size: int
+
+    samples: List[float]
+
+    # Epoch seconds.
+    last_sample_time: int
+
+    def __init__(self):
+        self.sample_size = 3
+        self.samples = []
+        self.last_sample_time = None
+
+    def add_aggregate_temp(self, value: float) -> float:
+        """
+        Add a CPU temp value to aggregate average.
+        Return new average.
+        """
+        # Check if aggregate samples are too old.
+        if self.last_sample_time is not None:
+            last_sample_time2 = datetime.fromtimestamp(self.last_sample_time)
+            now = datetime.now()
+            threshold_time = now - timedelta(hours=1)
+            if last_sample_time2 < threshold_time:
+                # Too old, clear samples.
+                self.samples = []
+
+        self.samples.append(value)
+        self.samples = self.samples[-self.sample_size:]
+        agg_value = reduce(lambda a, b: a + b, self.samples) / len(self.samples)
+        self.last_sample_time = datetime.now().timestamp()
+        return agg_value
+
+    def set_sample_size(self, sz: int) -> None:
+        """
+        Set sample size.
+        """
+        self.sample_size = sz
+        self.samples = self.samples[-sz:]
+
+    def restore(self, json_str: str) -> None:
+        """
+        Restore state from JSON string previously created by dump().
+        """
+        self.__dict__.update(json.loads(json_str))
+
+    def dump(self) -> str:
+        """
+        Dump state to JSON string.
+        """
+        return json.dumps(self.__dict__)
 
 
 class PiFanController:
@@ -17,6 +73,8 @@ class PiFanController:
     Reads fan and CPU sensors and changes fan speed to optimize noise reduction
     and power consumption.
     """
+    name: str
+
     ipmi_fan: IpmiFan
 
     ipmi_cpu: IpmiCpu
@@ -31,11 +89,12 @@ class PiFanController:
 
     dry_run: bool
 
+    state_path: str
+
     sample_size: int
 
-    samples: List[float]
-
-    def __init__(self, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
+    def __init__(self, name: str, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
+        self.name = name
         self.ipmi_fan = ipmi_fan
         self.ipmi_cpu = ipmi_cpu
         self.interval = 10
@@ -45,7 +104,11 @@ class PiFanController:
         self.easing = 'linear'
         self.dry_run = False
         self.sample_size = 3
-        self.samples = []
+
+        if 'TMP' in os.environ:
+            self.state_path = os.environ['TMP']
+        else:
+            self.state_path = '/tmp'
 
     def _suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
@@ -85,14 +148,39 @@ class PiFanController:
 
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
-    def add_aggregate_temp(self, value: float):
+    def state_filename(self) -> str:
+        slug = 'pifan_' + make_slug(self.name)
+        return os.path.join(self.state_path, slug + '.json')
+
+    def load_state(self) -> ControllerState:
         """
-        Add a CPU temp value to aggregate average.
-        Return new average.
+        Load state file, if it exists.
+        Otherwise, create a new object.
         """
-        self.samples.append(value)
-        self.samples = self.samples[-self.sample_size:]
-        return reduce(lambda a, b: a + b, self.samples) / len(self.samples)
+        filename = self.state_filename()
+        if os.path.exists(filename):
+            # Parse file contents.
+            with open(filename, 'r') as f:
+                state_str = f.read()
+
+            state = ControllerState()
+            state.restore(state_str)
+            state.set_sample_size(self.sample_size)
+            return state
+
+        # Return new object.
+        state = ControllerState()
+        state.set_sample_size(self.sample_size)
+        return state
+
+    def save_state(self, state: ControllerState) -> None:
+        """
+        Save state file.
+        """
+        filename = self.state_filename()
+        state_str = state.dump()
+        with open(filename, 'w') as f:
+            f.write(state_str)
 
     def monitor(self) -> None:
         """
@@ -102,19 +190,27 @@ class PiFanController:
         """
         print()
 
+        # Prepare state by loading from file, if exists.
+        state = self.load_state()
+
         while True:
             poll_start_time = datetime.now()
             print('--- Poll start: ' + poll_start_time.strftime('%x %X'))
 
             try:
+                # Get current CPU temps and aggregate.
                 self.ipmi_cpu.read_sensors()
                 cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
-                agg_cpu_temp = self.add_aggregate_temp(cpu_temp)
+                agg_cpu_temp = state.add_aggregate_temp(cpu_temp)
 
-                num_samples = len(self.samples)
-                if num_samples < self.sample_size:
+                # Save state to file for use with --one mode or if polling was
+                # restarted.
+                self.save_state(state)
+
+                num_samples = len(state.samples)
+                if num_samples < state.sample_size:
                     # Need more samples before proceeding.
-                    print(f'Collected {num_samples}/{self.sample_size} '
+                    print(f'Collected {num_samples}/{state.sample_size} '
                           'samples.')
 
                 else:

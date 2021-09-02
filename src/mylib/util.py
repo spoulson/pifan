@@ -2,7 +2,9 @@
 General utilities.
 """
 
+import re
 from typing import List
+import unicodedata
 
 
 def parse_pdv(text: str) -> List[List[str]]:
@@ -34,3 +36,17 @@ def parse_hex(text: str) -> int:
     if not text.startswith('0x'):
         text = '0x' + text
     return int(text, 0)
+
+re_slug1 = re.compile(r'[^.\w\s-]')
+re_slug2 = re.compile(r'[-\s]+')
+
+def make_slug(value: str) -> str:
+    """
+    Normalize a string for use as a slug, such as for filename.
+    """
+    value = unicodedata.normalize('NFKD', value)\
+        .encode('ascii', 'ignore')\
+        .decode('ascii')\
+        .lower()
+    value = re_slug1.sub('', value)
+    return re_slug2.sub('-', value).strip('-_')
