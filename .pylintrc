@@ -4,5 +4,6 @@ good-names=
 
 [MESSAGES CONTROL]
 disable=
+  no-self-use,
   too-few-public-methods,
   too-many-instance-attributes

@@ -52,9 +52,7 @@ def main():
     args = parse_args()
 
     ipmi_fan = IpmiFan(args.host, args.username, args.password)
-    ipmi_fan.discover_sensors()
     ipmi_cpu = IpmiCpu(args.host, args.username, args.password)
-    ipmi_cpu.discover_sensors()
 
     controller = PiFanController(args.host, ipmi_fan, ipmi_cpu)
     controller.ideal_temp = args.idealtemp
@@ -62,8 +60,6 @@ def main():
     controller.easing = args.easing
     controller.dry_run = args.dry_run
     controller.sample_size = args.sample_size
-
-    print()
 
     if args.one:
         # Single poll.
@@ -73,8 +69,8 @@ def main():
         # Endless polling.
         state = controller.load_state()
         interval = timedelta(seconds=args.interval)
-        monitor = Monitor(controller, state, interval)
-        monitor.launch()
+        monitor = Monitor(controller, interval)
+        monitor.launch(state)
 
 
 if __name__ == '__main__':

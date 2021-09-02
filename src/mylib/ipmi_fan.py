@@ -4,49 +4,16 @@ IPMI control of chassis fans.
 
 import re
 from typing import Dict
+from .controller_state import ControllerState
+from .fan_sensor import FanSensor
 from .ipmitool import Ipmitool
 from .util import parse_hex
-
-
-class FanSensor:
-    """
-    Fan sensor state.
-    """
-    name: str
-
-    id: int
-
-    rpm: int
-
-    max: int
-
-    def __init__(self) -> None:
-        self.name = ''
-        self.id = 0
-        self.rpm = 0
-        self.max = 0
-
-    def __str__(self) -> str:
-        return(f'FanSensor: name={self.name}, id={self.id:#x}, '
-               f'rpm={self.rpm}, max={self.max}, '
-               f'percent={self.percent():0.1f}%')
-
-    def percent(self) -> float:
-        """
-        Compute fan percentage.
-        """
-        if self.max == 0:
-            return float('nan')
-
-        return float(self.rpm) / float(self.max) * 100.0
 
 
 class IpmiFan:
     """
     IPMI control of chassis fans.
     """
-    fan_map: Dict[str, FanSensor]
-
     ipmitool: Ipmitool
 
     pat_fan = re.compile(r'^Fan\d+$')
@@ -54,10 +21,9 @@ class IpmiFan:
     pat_integer = re.compile(r'^(\d+)')
 
     def __init__(self, host: str, username: str, password: str) -> None:
-        self.fan_map = {}
         self.ipmitool = Ipmitool(host, username, password)
 
-    def discover_sensors(self) -> None:
+    def discover_sensors(self, state: ControllerState) -> None:
         """
         Query IPMI for list of chassis fans.
         Must call this method first before using this class.
@@ -79,17 +45,17 @@ class IpmiFan:
             print(f'Found fan sensor: {name} ({sensor.id:#x})')
             fan_map[name] = sensor
 
-        self.fan_map = fan_map
+        state.fan_map = fan_map
 
         # Read sensor values.
-        self.read_sensors()
+        self.read_sensors(state)
 
-    def read_sensors(self) -> None:
+    def read_sensors(self, state: ControllerState) -> None:
         """
         Read current sensor values.
-        Store values in self.fan_map.
+        Store values in state.
         """
-        fan_names = list(self.fan_map.keys())
+        fan_names = list(state.fan_map.keys())
         result = self.ipmitool.sdr_get(fan_names)
 
         # Sensor ID              : Fan1 (0x30)
@@ -122,7 +88,7 @@ class IpmiFan:
 
             name = match_name.groups()[0]
             sensor_data = result[key]
-            sensor = self.fan_map[name]
+            sensor = state.fan_map[name]
 
             if 'Sensor Reading' in sensor_data:
                 value = sensor_data['Sensor Reading']
@@ -148,15 +114,15 @@ class IpmiFan:
                 sensor.max = 0
                 print(f'Error: Unable to get sensor maximum for: {name}')
 
-        self.dump_sensors()
+        self.dump_sensors(state)
 
-    def dump_sensors(self) -> None:
+    def dump_sensors(self, state: ControllerState) -> None:
         """
         Dump sensors to console.
         """
-        names = self.fan_map.keys()
+        names = state.fan_map.keys()
         for name in sorted(names):
-            fan = self.fan_map[name]
+            fan = state.fan_map[name]
             print(fan)
 
     def set_fan_speed(self, fan_speed: int) -> None:

@@ -1,9 +1,10 @@
 """
 Continuously monitor by polling at an interval.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 import time
-from .pi_fan_controller import ControllerState, PiFanController
+from .controller_state import ControllerState
+from .pi_fan_controller import PiFanController
 
 
 class Monitor:
@@ -12,31 +13,24 @@ class Monitor:
     """
     controller: PiFanController
 
-    state: ControllerState
-
     interval: timedelta
 
-    def __init__(self, controller: PiFanController, state: ControllerState,
-                 interval: timedelta):
+    def __init__(self, controller: PiFanController, interval: timedelta):
         self.controller = controller
-        self.state = state
         self.interval = interval
 
-    def launch(self) -> None:
+    def launch(self, state: ControllerState) -> None:
         """
         Continuously poll fan and CPU sensors and adjust fan speed according
         to easing algorithm.
         """
-        # Prepare state by loading from file, if exists.
-        state = self.controller.load_state()
-
         while True:
-            poll_start_time = datetime.now()
             self.controller.poll(state)
 
             # Wait for next polling interval.
-            poll_end_time = datetime.now()
+            poll_start_time = self.controller.poll_start_time
+            poll_end_time = self.controller.poll_end_time
             next_poll_time = poll_start_time + self.interval
-            delay = (next_poll_time - poll_end_time).total_seconds()
-            if delay > 0:
+            if next_poll_time > poll_end_time:
+                delay = (next_poll_time - poll_end_time).total_seconds()
                 time.sleep(delay)
