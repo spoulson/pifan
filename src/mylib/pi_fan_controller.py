@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from functools import reduce
 import json
 import os
-import time
 import traceback
 from typing import List
 from .ipmi_cpu import IpmiCpu
@@ -15,12 +14,15 @@ from .util import make_slug
 
 
 class ControllerState:
+    """
+    Runtime state of PiFanController.
+    """
     sample_size: int
 
     samples: List[float]
 
     # Epoch seconds.
-    last_sample_time: int
+    last_sample_time: float
 
     def __init__(self):
         self.sample_size = 3
@@ -43,16 +45,19 @@ class ControllerState:
 
         self.samples.append(value)
         self.samples = self.samples[-self.sample_size:]
-        agg_value = reduce(lambda a, b: a + b, self.samples) / len(self.samples)
+        agg_value = reduce(
+            lambda a, b: a + b,
+            self.samples
+        ) / len(self.samples)
         self.last_sample_time = datetime.now().timestamp()
         return agg_value
 
-    def set_sample_size(self, sz: int) -> None:
+    def set_sample_size(self, sample_size: int) -> None:
         """
         Set sample size.
         """
-        self.sample_size = sz
-        self.samples = self.samples[-sz:]
+        self.sample_size = sample_size
+        self.samples = self.samples[-sample_size:]
 
     def restore(self, json_str: str) -> None:
         """
@@ -93,7 +98,8 @@ class PiFanController:
 
     sample_size: int
 
-    def __init__(self, name: str, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
+    def __init__(self, name: str, ipmi_fan: IpmiFan,
+                 ipmi_cpu: IpmiCpu) -> None:
         self.name = name
         self.ipmi_fan = ipmi_fan
         self.ipmi_cpu = ipmi_cpu
@@ -149,6 +155,9 @@ class PiFanController:
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
     def state_filename(self) -> str:
+        """
+        Generate a valid filename for storing controller state.
+        """
         slug = 'pifan_' + make_slug(self.name)
         return os.path.join(self.state_path, slug + '.json')
 
@@ -160,8 +169,8 @@ class PiFanController:
         filename = self.state_filename()
         if os.path.exists(filename):
             # Parse file contents.
-            with open(filename, 'r') as f:
-                state_str = f.read()
+            with open(filename, 'r') as state_file:
+                state_str = state_file.read()
 
             state = ControllerState()
             state.restore(state_str)
@@ -179,61 +188,48 @@ class PiFanController:
         """
         filename = self.state_filename()
         state_str = state.dump()
-        with open(filename, 'w') as f:
-            f.write(state_str)
+        with open(filename, 'w') as state_file:
+            state_file.write(state_str)
 
-    def monitor(self) -> None:
+    def poll(self, state: ControllerState) -> None:
         """
-        Monitor fan and CPU sensors and adjust fan speed according to easing
+        Poll fan and CPU sensors and adjust fan speed according to easing
         algorithm.
-        Runs endlessly.
         """
-        print()
+        poll_start_time = datetime.now()
+        print('--- Poll start: ' + poll_start_time.strftime('%x %X'))
 
-        # Prepare state by loading from file, if exists.
-        state = self.load_state()
+        try:
+            # Get current CPU temps and aggregate.
+            self.ipmi_cpu.read_sensors()
+            cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
+            agg_cpu_temp = state.add_aggregate_temp(cpu_temp)
 
-        while True:
-            poll_start_time = datetime.now()
-            print('--- Poll start: ' + poll_start_time.strftime('%x %X'))
+            # Save state to file for use with --one mode or if polling was
+            # restarted.
+            self.save_state(state)
 
-            try:
-                # Get current CPU temps and aggregate.
-                self.ipmi_cpu.read_sensors()
-                cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
-                agg_cpu_temp = state.add_aggregate_temp(cpu_temp)
+            num_samples = len(state.samples)
+            if num_samples < state.sample_size:
+                # Need more samples before proceeding.
+                print(f'Collected {num_samples}/{state.sample_size} '
+                      'samples.')
 
-                # Save state to file for use with --one mode or if polling was
-                # restarted.
-                self.save_state(state)
+            else:
+                # Set fan speed.
+                print(f'Aggregate CPU temperature: {agg_cpu_temp:0.1f}C')
+                speed = self.suggest_fan_speed(agg_cpu_temp)
+                print(f'Suggested fan speed: {speed}%')
 
-                num_samples = len(state.samples)
-                if num_samples < state.sample_size:
-                    # Need more samples before proceeding.
-                    print(f'Collected {num_samples}/{state.sample_size} '
-                          'samples.')
-
+                if not self.dry_run:
+                    self.ipmi_fan.set_fan_speed(speed)
                 else:
-                    # Set fan speed.
-                    print(f'Aggregate CPU temperature: {agg_cpu_temp:0.1f}C')
-                    speed = self.suggest_fan_speed(agg_cpu_temp)
-                    print(f'Suggested fan speed: {speed}%')
+                    print('Dry run mode: not calling set_fan_speed()')
 
-                    if not self.dry_run:
-                        self.ipmi_fan.set_fan_speed(speed)
-                    else:
-                        print('Dry run mode: not calling set_fan_speed()')
+                self.ipmi_fan.read_sensors()
 
-                    self.ipmi_fan.read_sensors()
+        except Exception:  # pylint: disable=broad-except
+            print(traceback.format_exc())
 
-            except Exception:  # pylint: disable=broad-except
-                print(traceback.format_exc())
-
-            poll_end_time = datetime.now()
-            print('--- Poll end: ' + poll_end_time.strftime('%x %X') + '\n')
-
-            # Wait for next polling interval.
-            next_poll_time = poll_start_time + timedelta(seconds=self.interval)
-            delay = (next_poll_time - poll_end_time).total_seconds()
-            if delay > 0:
-                time.sleep(delay)
+        poll_end_time = datetime.now()
+        print('--- Poll end: ' + poll_end_time.strftime('%x %X') + '\n')

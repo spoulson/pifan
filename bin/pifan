@@ -4,7 +4,8 @@ Pi Fan
 """
 
 import argparse
-from mylib import PiFanController, IpmiCpu, IpmiFan
+from datetime import timedelta
+from mylib import PiFanController, Monitor, IpmiCpu, IpmiFan
 
 
 def parse_args():
@@ -16,8 +17,14 @@ def parse_args():
         description='Dell PowerEdge fan speed controller for Raspberry Pi.',
         epilog=""
     )
-    parser.add_argument('--interval', type=int, metavar='SEC', default=10,
-                        help='Delay between polls')
+
+    run_mode_group = parser.add_mutually_exclusive_group()
+    run_mode_group.add_argument('--one', default=False, action='store_true',
+                                help='Poll once and exit')
+    run_mode_group.add_argument('--interval', type=int, metavar='SEC',
+                                default=10,
+                                help='Delay between polls (default: 10)')
+
     parser.add_argument('--idealtemp', type=float, metavar='DEG_C', default=40,
                         help='Ideal temperature (default: 40)')
     parser.add_argument('--maxtemp', type=float, metavar='DEG_C', default=75,
@@ -29,8 +36,7 @@ def parse_args():
     parser.add_argument('--sample-size', type=int, metavar='N', default=3,
                         help='Sample size of CPU temp average aggregation '
                              '(default: 3)')
-    parser.add_argument('--dry-run', const=True, default=False,
-                        action='store_const',
+    parser.add_argument('--dry-run', default=False, action='store_true',
                         help='Dry run: don\'t change server settings')
     parser.add_argument('host', metavar='HOST', help='Target host')
     parser.add_argument('username', metavar='USERNAME', help='Username')
@@ -50,14 +56,25 @@ def main():
     ipmi_cpu = IpmiCpu(args.host, args.username, args.password)
     ipmi_cpu.discover_sensors()
 
-    controller = PiFanController(ipmi_fan, ipmi_cpu)
-    controller.interval = args.interval
+    controller = PiFanController(args.host, ipmi_fan, ipmi_cpu)
     controller.ideal_temp = args.idealtemp
     controller.max_temp = args.maxtemp
     controller.easing = args.easing
     controller.dry_run = args.dry_run
     controller.sample_size = args.sample_size
-    controller.monitor()
+
+    print()
+
+    if args.one:
+        # Single poll.
+        state = controller.load_state()
+        controller.poll(state)
+    else:
+        # Endless polling.
+        state = controller.load_state()
+        interval = timedelta(seconds=args.interval)
+        monitor = Monitor(controller, state, interval)
+        monitor.launch()
 
 
 if __name__ == '__main__':

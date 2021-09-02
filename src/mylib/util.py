@@ -7,6 +7,10 @@ from typing import List
 import unicodedata
 
 
+RE_SLUG1 = re.compile(r'[^.\w\s-]')
+RE_SLUG2 = re.compile(r'[-\s]+')
+
+
 def parse_pdv(text: str) -> List[List[str]]:
     """
     Parse pipe delimited values.
@@ -37,8 +41,6 @@ def parse_hex(text: str) -> int:
         text = '0x' + text
     return int(text, 0)
 
-re_slug1 = re.compile(r'[^.\w\s-]')
-re_slug2 = re.compile(r'[-\s]+')
 
 def make_slug(value: str) -> str:
     """
@@ -48,5 +50,5 @@ def make_slug(value: str) -> str:
         .encode('ascii', 'ignore')\
         .decode('ascii')\
         .lower()
-    value = re_slug1.sub('', value)
-    return re_slug2.sub('-', value).strip('-_')
+    value = RE_SLUG1.sub('', value)
+    return RE_SLUG2.sub('-', value).strip('-_')
