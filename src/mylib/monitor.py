@@ -15,17 +15,28 @@ class Monitor:
 
     interval: timedelta
 
-    def __init__(self, controller: PiFanController, interval: timedelta):
+    count: int
+
+    def __init__(self, controller: PiFanController, interval: timedelta,
+                 count: int):
         self.controller = controller
         self.interval = interval
+        self.count = count
 
     def launch(self, state: ControllerState) -> None:
         """
         Continuously poll fan and CPU sensors and adjust fan speed according
         to easing algorithm.
         """
+        counter: int = 0
+
         while True:
             self.controller.poll(state)
+
+            # Stop after a defined poll limit.
+            counter += 1
+            if self.count > 0 and counter >= self.count:
+                break
 
             # Wait for next polling interval.
             poll_start_time = self.controller.poll_start_time

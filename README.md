@@ -47,7 +47,7 @@ $ sudo -H pip3 install --upgrade .
 
 # Usage
 ```
-usage: pifan [-h] [--one | --interval SEC] [--idealtemp DEG_C]
+usage: pifan [-h] [--interval SEC] [--count N] [--idealtemp DEG_C]
              [--maxtemp DEG_C] [--easing TYPE] [--sample-size N] [--dry-run]
              HOST USERNAME PASSWORD
 
@@ -60,8 +60,8 @@ positional arguments:
 
 optional arguments:
   -h, --help         show this help message and exit
-  --one              Poll once and exit
   --interval SEC     Delay between polls (default: 10)
+  --count N          Number of polls, 0=unlimited (default: 0)
   --idealtemp DEG_C  Ideal temperature (default: 40)
   --maxtemp DEG_C    Max allowable temperature (default: 75)
   --easing TYPE      Fan speed easing type: linear | parabolic (default: parabolic)
@@ -93,7 +93,11 @@ allowed.
 
 # Cron Job Deployment
 Maintain multiple servers by deploying a cron job for each server.  Be sure to
-use the `--one` option.
+use the `--count` option to limit polling.
+
+Since cron typically schedules at minute intervals, it is possible to do
+sub-minute polling using a combination of `--interval` and `--count` to poll
+multiple times in a single cron job.
 
 # Setup Development Environment
 Most of the Python operations are wrapped in `pipenv` so as not to step all
