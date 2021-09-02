@@ -2,13 +2,13 @@
 Pi Fan controller class.
 """
 
-from datetime import datetime, timedelta
-from functools import reduce
-import time
+from datetime import datetime
+import os
 import traceback
-from typing import List
+from .controller_state import ControllerState
 from .ipmi_cpu import IpmiCpu
 from .ipmi_fan import IpmiFan
+from .util import make_slug
 
 
 class PiFanController:
@@ -17,6 +17,8 @@ class PiFanController:
     Reads fan and CPU sensors and changes fan speed to optimize noise reduction
     and power consumption.
     """
+    name: str
+
     ipmi_fan: IpmiFan
 
     ipmi_cpu: IpmiCpu
@@ -31,11 +33,17 @@ class PiFanController:
 
     dry_run: bool
 
+    state_path: str
+
     sample_size: int
 
-    samples: List[float]
+    poll_start_time: datetime
 
-    def __init__(self, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
+    poll_end_time: datetime
+
+    def __init__(self, name: str, ipmi_fan: IpmiFan,
+                 ipmi_cpu: IpmiCpu) -> None:
+        self.name = name
         self.ipmi_fan = ipmi_fan
         self.ipmi_cpu = ipmi_cpu
         self.interval = 10
@@ -45,7 +53,13 @@ class PiFanController:
         self.easing = 'linear'
         self.dry_run = False
         self.sample_size = 3
-        self.samples = []
+        self.poll_start_time = datetime.fromtimestamp(0)
+        self.poll_end_time = datetime.fromtimestamp(0)
+
+        if 'TMP' in os.environ:
+            self.state_path = os.environ['TMP']
+        else:
+            self.state_path = '/tmp'
 
     def _suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
@@ -85,59 +99,90 @@ class PiFanController:
 
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
-    def add_aggregate_temp(self, value: float):
+    def state_filename(self) -> str:
         """
-        Add a CPU temp value to aggregate average.
-        Return new average.
+        Generate a valid filename for storing controller state.
         """
-        self.samples.append(value)
-        self.samples = self.samples[-self.sample_size:]
-        return reduce(lambda a, b: a + b, self.samples) / len(self.samples)
+        slug = 'pifan_' + make_slug(self.name)
+        return os.path.join(self.state_path, slug + '.dat')
 
-    def monitor(self) -> None:
+    def load_state(self) -> ControllerState:
         """
-        Monitor fan and CPU sensors and adjust fan speed according to easing
+        Load state file, if it exists.
+        Otherwise, create a new object.
+        """
+        filename = self.state_filename()
+        if os.path.exists(filename):
+            # Parse file contents.
+            with open(filename, 'rb') as state_file:
+                state_buf = state_file.read()
+
+            state = ControllerState()
+            state.restore(state_buf)
+            state.set_sample_size(self.sample_size)
+            print(f'Loaded state from {filename}')
+            return state
+
+        # Return new object.
+        state = ControllerState()
+        state.set_sample_size(self.sample_size)
+        return state
+
+    def save_state(self, state: ControllerState) -> None:
+        """
+        Save state file.
+        """
+        filename = self.state_filename()
+        state_buf = state.dump()
+        with open(filename, 'wb') as state_file:
+            state_file.write(state_buf)
+
+    def poll(self, state: ControllerState) -> None:
+        """
+        Poll fan and CPU sensors and adjust fan speed according to easing
         algorithm.
-        Runs endlessly.
         """
-        print()
+        # Discover sensors if not set in state.
+        if state.fan_map is None or state.cpu_map is None:
+            print('--- Discover sensors')
+            self.ipmi_fan.discover_sensors(state)
+            self.ipmi_cpu.discover_sensors(state)
+            self.save_state(state)
 
-        while True:
-            poll_start_time = datetime.now()
-            print('--- Poll start: ' + poll_start_time.strftime('%x %X'))
+        self.poll_start_time = datetime.now()
+        print('\n--- Poll start: ' + self.poll_start_time.strftime('%x %X'))
 
-            try:
-                self.ipmi_cpu.read_sensors()
-                cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
-                agg_cpu_temp = self.add_aggregate_temp(cpu_temp)
+        try:
+            # Get current CPU temps and aggregate.
+            self.ipmi_cpu.read_sensors(state)
+            cpu_temp = self.ipmi_cpu.get_max_cpu_temp(state)
+            agg_cpu_temp = state.add_aggregate_temp(cpu_temp)
 
-                num_samples = len(self.samples)
-                if num_samples < self.sample_size:
-                    # Need more samples before proceeding.
-                    print(f'Collected {num_samples}/{self.sample_size} '
-                          'samples.')
+            # Save state to file for use with --one mode or if polling was
+            # restarted.
+            self.save_state(state)
 
+            num_samples = len(state.samples)
+            if num_samples < state.sample_size:
+                # Need more samples before proceeding.
+                print(f'Collected {num_samples}/{state.sample_size} '
+                      'samples.')
+
+            else:
+                # Set fan speed.
+                print(f'Aggregate CPU temperature: {agg_cpu_temp:0.1f}C')
+                speed = self.suggest_fan_speed(agg_cpu_temp)
+                print(f'Suggested fan speed: {speed}%')
+
+                if not self.dry_run:
+                    self.ipmi_fan.set_fan_speed(speed)
                 else:
-                    # Set fan speed.
-                    print(f'Aggregate CPU temperature: {agg_cpu_temp:0.1f}C')
-                    speed = self.suggest_fan_speed(agg_cpu_temp)
-                    print(f'Suggested fan speed: {speed}%')
+                    print('Dry run mode: not calling set_fan_speed()')
 
-                    if not self.dry_run:
-                        self.ipmi_fan.set_fan_speed(speed)
-                    else:
-                        print('Dry run mode: not calling set_fan_speed()')
+                self.ipmi_fan.read_sensors(state)
 
-                    self.ipmi_fan.read_sensors()
+        except Exception:  # pylint: disable=broad-except
+            print(traceback.format_exc())
 
-            except Exception:  # pylint: disable=broad-except
-                print(traceback.format_exc())
-
-            poll_end_time = datetime.now()
-            print('--- Poll end: ' + poll_end_time.strftime('%x %X') + '\n')
-
-            # Wait for next polling interval.
-            next_poll_time = poll_start_time + timedelta(seconds=self.interval)
-            delay = (next_poll_time - poll_end_time).total_seconds()
-            if delay > 0:
-                time.sleep(delay)
+        self.poll_end_time = datetime.now()
+        print('--- Poll end: ' + self.poll_end_time.strftime('%x %X'))
