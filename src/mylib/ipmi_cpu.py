@@ -84,7 +84,7 @@ class IpmiCpu:
             if len(row) < 2:
                 continue
 
-            key = f'{row[0]} ({row[1]})'
+            key = f'{row[0]} ({parse_hex(row[1]):#x})'
             if key in self.cpu_map:
                 sensor = self.cpu_map[key]
 
