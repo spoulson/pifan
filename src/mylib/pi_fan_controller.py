@@ -3,8 +3,10 @@ Pi Fan controller class.
 """
 
 from datetime import datetime, timedelta
+from functools import reduce
 import time
 import traceback
+from typing import List
 from .ipmi_cpu import IpmiCpu
 from .ipmi_fan import IpmiFan
 
@@ -29,6 +31,10 @@ class PiFanController:
 
     dry_run: bool
 
+    sample_size: int
+
+    samples: List[float]
+
     def __init__(self, ipmi_fan: IpmiFan, ipmi_cpu: IpmiCpu) -> None:
         self.ipmi_fan = ipmi_fan
         self.ipmi_cpu = ipmi_cpu
@@ -38,6 +44,8 @@ class PiFanController:
         self.max_fan = 100
         self.easing = 'linear'
         self.dry_run = False
+        self.sample_size = 3
+        self.samples = []
 
     def _suggest_fan_speed_linear(self, cpu_temp: float) -> int:
         """
@@ -77,6 +85,15 @@ class PiFanController:
 
         raise Exception(f'Unrecognized easing type "{self.easing}"')
 
+    def add_aggregate_temp(self, value: float):
+        """
+        Add a CPU temp value to aggregate average.
+        Return new average.
+        """
+        self.samples.append(value)
+        self.samples = self.samples[-self.sample_size:]
+        return reduce(lambda a, b: a + b, self.samples) / len(self.samples)
+
     def monitor(self) -> None:
         """
         Monitor fan and CPU sensors and adjust fan speed according to easing
@@ -92,16 +109,26 @@ class PiFanController:
             try:
                 self.ipmi_cpu.read_sensors()
                 cpu_temp = self.ipmi_cpu.get_max_cpu_temp()
-                print(f'Max CPU temperature: {cpu_temp}C')
-                speed = self.suggest_fan_speed(cpu_temp)
-                print(f'Suggested fan speed: {speed}%')
+                agg_cpu_temp = self.add_aggregate_temp(cpu_temp)
 
-                if not self.dry_run:
-                    self.ipmi_fan.set_fan_speed(speed)
+                num_samples = len(self.samples)
+                if num_samples < self.sample_size:
+                    # Need more samples before proceeding.
+                    print(f'Collected {num_samples}/{self.sample_size} '
+                          'samples.')
+
                 else:
-                    print('Dry run mode: not calling set_fan_speed()')
+                    # Set fan speed.
+                    print(f'Aggregate CPU temperature: {agg_cpu_temp:0.1f}C')
+                    speed = self.suggest_fan_speed(agg_cpu_temp)
+                    print(f'Suggested fan speed: {speed}%')
 
-                self.ipmi_fan.read_sensors()
+                    if not self.dry_run:
+                        self.ipmi_fan.set_fan_speed(speed)
+                    else:
+                        print('Dry run mode: not calling set_fan_speed()')
+
+                    self.ipmi_fan.read_sensors()
 
             except Exception:  # pylint: disable=broad-except
                 print(traceback.format_exc())

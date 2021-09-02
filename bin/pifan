@@ -26,6 +26,9 @@ def parse_args():
                         choices=['linear', 'parabolic'],
                         help='Fan speed easing type: linear | parabolic '
                              '(default: parabolic)')
+    parser.add_argument('--sample-size', type=int, metavar='N', default=3,
+                        help='Sample size of CPU temp average aggregation '
+                             '(default: 3)')
     parser.add_argument('--dry-run', const=True, default=False,
                         action='store_const',
                         help='Dry run: don\'t change server settings')
@@ -53,6 +56,7 @@ def main():
     controller.max_temp = args.maxtemp
     controller.easing = args.easing
     controller.dry_run = args.dry_run
+    controller.sample_size = args.sample_size
     controller.monitor()
 
 
