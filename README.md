@@ -112,7 +112,8 @@ Static analysis:
 $ make lint mypy pycodestyle
 ```
 
-Install with "editable" option for testing and development:
+Install in home directory with "editable" option for testing and development:
 ```sh
-$ sudo -H pip3 install -e .
+$ pipenv install -e .
+$ pipenv run pifan -h
 ```
