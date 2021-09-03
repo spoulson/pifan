@@ -47,7 +47,7 @@ $ sudo -H pip3 install --upgrade .
 
 # Usage
 ```
-usage: pifan [-h] [--interval SEC] [--count N] [--idealtemp DEG_C]
+usage: pifan [-h] [--version] [--interval SEC] [--count N] [--idealtemp DEG_C]
              [--maxtemp DEG_C] [--easing TYPE] [--sample-size N] [--dry-run]
              HOST USERNAME PASSWORD
 
@@ -60,6 +60,7 @@ positional arguments:
 
 optional arguments:
   -h, --help         show this help message and exit
+  --version          Display version
   --interval SEC     Delay between polls (default: 10)
   --count N          Number of polls, 0=unlimited (default: 0)
   --idealtemp DEG_C  Ideal temperature (default: 40)
